@@ -97,6 +97,9 @@ def socialLinks(df):
     #df.apply(socialLink_row,axis=0)
     return edges,adjList
 
+
+
+
 def user_feature(df,title):
     t = df.groupby('commit_name')['language'].all().reset_index()
     t.columns = ['commit_name','language']
@@ -149,9 +152,14 @@ def calcSocialLink(adjList,edges,df_item,dev_item_time,colVal):
                         social_links[(k,item)]+=1.0/len(n_commiters)
     return social_links
 
-
+def project_filelist(df,title):
+    #project, file list
+    t = df.groupby('project')['file_name'].apply(lambda x:x.tolist())
+    t.to_csv(title+'.csv')
 
 def createDataFrames(threshold,names,dataframe_list):
+    
+    
     for n,df in zip(names,dataframe_list):
         
         print n
@@ -159,42 +167,38 @@ def createDataFrames(threshold,names,dataframe_list):
         file_df = user_itemMatrix(df,'file_name',n)
         project_df = user_itemMatrix(df,'project',n)
 
-        file_df=itemFreq_filter(file_df,threshold,n+'_file')
-        project_df=itemFreq_filter(project_df,threshold,n+'_project')
-
-        df_file_ = df.loc[df['file_name'].isin(file_df.columns)]
-        df_file_.to_csv(n+'commit_history_dev_15_count_file'+str(threshold)+'.csv')
-        df_proj_ = df.loc[df['project'].isin(project_df.columns)]
-        df_proj_.to_csv(n+'commit_history_dev_15_count_project'+str(threshold)+'.csv')
+        #file_df=itemFreq_filter(file_df,threshold,n+'_file')
+        #project_df=itemFreq_filter(project_df,threshold,n+'_project')
+        
 
         #user-item first time
-        user_item_file = df_file_.sort(['commit_date']).groupby(['commit_name','file_name'])['commit_date'].first().to_frame().reset_index()
+        user_item_file = df.sort(['commit_date']).groupby(['commit_name','file_name'])['commit_date'].first().to_frame().reset_index()
         user_item_file.to_csv(n+'_user_file_time.csv')
-        user_item_project = df_proj_.sort(['commit_date']).groupby(['commit_name','project'])['commit_date'].first().to_frame().reset_index()
+        user_item_project = df.sort(['commit_date']).groupby(['commit_name','project'])['commit_date'].first().to_frame().reset_index()
         user_item_project.to_csv(n+'_user_project_time.csv')
 
         #features
-        user_feature(df_file_,n+'_file_')
-        user_feature(df_proj_,n+'_project_')
-        item_feature('file_name',df_file_,n)
-        item_feature('project',df_proj_,n)
+        user_feature(df,n+'_file_')
+        user_feature(df,n+'_project_')
+        item_feature('file_name',df,n)
+        item_feature('project',df,n)
         
         
-
+        
         findCountDevs(file_df).to_csv('file_name_'+n+'dev_count.csv')
         findCountDevs(project_df).to_csv('project'+n+'dev_count.csv')
         
         edges,adjList = socialLinks(file_df.transpose())
         cPickle.dump(edges,open(n+'_edges_'+'file'+'.p','w'))
         cPickle.dump(adjList,open(n+'_adjList_'+'file'+'.p','w'))
-        social_links=calcSocialLink(adjList,edges,df_file_,user_item_file,"file_name")
+        social_links=calcSocialLink(adjList,edges,df,user_item_file,"file_name")
         cPickle.dump(social_links,open(n+'_social_links_'+'file'+'.p','w'))
 
 
         edges,adjList = socialLinks(project_df.transpose())
         cPickle.dump(edges,open(n+'_edges_'+'project'+'.p','w'))
         cPickle.dump(adjList,open(n+'_adjList_'+'project'+'.p','w'))
-        social_links=calcSocialLink(adjList,edges,df_proj_,user_item_project,"project")
+        social_links=calcSocialLink(adjList,edges,df,user_item_project,"project")
         cPickle.dump(social_links,open(n+'_social_links_'+'project'+'.p','w'))
         print social_links
         #sumUsers_filter(file_df,threshold,n+'_file')
@@ -208,7 +212,7 @@ def createDataFrames(threshold,names,dataframe_list):
 
 def dataframe_create(filename):
     df =pd.read_csv(filename)
-    df = df.ix[:,xrange(3,15)]
+    df = df.ix[:,xrange(1,len(df.columns))]
     columns = df.columns
 
 
@@ -218,4 +222,8 @@ def dataframe_create(filename):
     names = ['train','test']
     createDataFrames(threshold,names,[train_df,test_df])
 
-dataframe_create('commit_history_dev_15.csv')
+
+    
+
+project_filelist(pd.read_csv('commit_history_dev_threshold_300_50.csv'),'project_filelist.csv')
+dataframe_create('commit_history_dev_threshold_300_50.csv')
